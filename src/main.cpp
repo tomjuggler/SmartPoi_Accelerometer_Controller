@@ -6,10 +6,7 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include <LittleFS.h>
-
-// WiFi credentials
-const char* ssid = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+#include "secrets.h"
 
 // MPU-6050 sensor object
 Adafruit_MPU6050 mpu;
@@ -54,55 +51,6 @@ void saveRotations() {
     Serial.println("Error saving rotations to file.");
   }
 }
-
-// HTML for the web page
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
-<head>
-  <title>ESP8266 Bike Computer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    html { font-family: Arial; display: inline-block; margin: 0px auto; text-align: center;}
-    h2 { font-size: 2.0rem; }
-    p { font-size: 1.5rem; }
-    .units { font-size: 1.2rem; }
-    .button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;
-      text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}
-    .status { font-size: 1.0rem; color: #444; }
-  </style>
-</head>
-<body>
-  <h2>ESP8266 Bike Computer</h2>
-  <p>
-    <span class="units">Rotations:</span>
-    <span id="rotations">%ROTATIONS%</span>
-  </p>
-  <p><a href="/reset"><button class="button">Reset</button></a></p>
-  <p class="status">Server Status: <span id="server-status">Connecting...</span></p>
-<script>
-  if (!!window.EventSource) {
-    var source = new EventSource('/events');
-
-    source.onopen = function(e) {
-      document.getElementById("server-status").innerHTML = "Online";
-      document.getElementById("server-status").style.color = "green";
-    };
-
-    source.onerror = function(e) {
-      if (e.target.readyState != EventSource.OPEN) {
-        document.getElementById("server-status").innerHTML = "Offline";
-        document.getElementById("server-status").style.color = "red";
-      }
-    };
-
-    source.addEventListener('rotation', function(e) {
-      document.getElementById('rotations').innerHTML = e.data;
-    }, false);
-  }
-</script>
-</body>
-</html>
-)rawliteral";
 
 // Replace placeholders in the HTML
 String processor(const String& var){
@@ -151,14 +99,22 @@ void setup() {
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html, processor);
+    request->send(LittleFS, "/index.html", "text/html", false, processor);
     Serial.println("Client connected to root.");
+  });
+
+  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/style.css", "text/css");
+  });
+
+  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(LittleFS, "/script.js", "text/javascript");
   });
 
   server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
     rotations = 0;
     saveRotations();
-    request->send_P(200, "text/html", index_html, processor);
+    request->send(LittleFS, "/index.html", "text/html", false, processor);
     Serial.println("Rotations reset.");
   });
 
@@ -182,6 +138,15 @@ void loop() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
+  if (debug_mode) {
+    Serial.print("X: ");
+    Serial.print(a.acceleration.x);
+    Serial.print(", Y: ");
+    Serial.print(a.acceleration.y);
+    Serial.print(", Z: ");
+    Serial.println(a.acceleration.z);
+  }
+
   // Calculate angle from gyroscope data
   float angle = last_angle + g.gyro.y * (millis() - last_update_time) / 1000.0;
   last_update_time = millis();
@@ -197,8 +162,8 @@ void loop() {
 
   last_angle = angle;
 
-  // Send SSE event every second
-  if (millis() - last_event_time > 1000) {
+  // Send SSE event every 250ms
+  if (millis() - last_event_time > 250) {
     events.send(String(rotations).c_str(), "rotation", millis());
     last_event_time = millis();
   }
