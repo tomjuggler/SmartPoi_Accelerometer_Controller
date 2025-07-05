@@ -157,26 +157,42 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   if (debug_mode) {
-    char debug_data[100];
-    snprintf(debug_data, sizeof(debug_data), "X: %.2f, Y: %.2f, Z: %.2f", a.acceleration.x, a.acceleration.y, a.acceleration.z);
+    char debug_data[150];
+    snprintf(debug_data, sizeof(debug_data), 
+             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rotations: %d", 
+             a.acceleration.x, a.acceleration.y, a.acceleration.z,
+             g.gyro.x, g.gyro.y, g.gyro.z,
+             rotations);
     Serial.println(debug_data);
     debug_events.send(debug_data, "debug", millis());
   }
 
-  // Calculate angle from gyroscope data
-  float angle = last_angle + g.gyro.y * (millis() - last_update_time) / 1000.0;
+  // Calculate angle from gyroscope data with deadzone
+  const float gyroDeadzone = 0.1;  // degrees/s threshold
+  float gyroValue;
+  switch(rotation_axis) {
+    case 0: gyroValue = g.gyro.x; break;
+    case 1: gyroValue = g.gyro.y; break;
+    case 2: gyroValue = g.gyro.z; break;
+    default: gyroValue = g.gyro.y;
+  }
+  float gyroY = (abs(gyroValue) > gyroDeadzone) ? gyroValue : 0;
+  float angle = last_angle + gyroY * (millis() - last_update_time) / 1000.0;
   last_update_time = millis();
 
-  // Normalize angle to 0-360
-  if (angle >= 360) {
-    angle -= 360;
+  // Rotation detection with threshold
+  const float rotationThreshold = 350.0;  // degrees
+  if (angle >= rotationThreshold) {
     rotations++;
+    angle -= 360;
     saveRotations();
+    last_angle = angle;  // Reset immediately after detection
   } else if (angle < 0) {
     angle += 360;
+    last_angle = angle;
+  } else {
+    last_angle = angle;
   }
-
-  last_angle = angle;
 
   // Send SSE event every 250ms
   if (millis() - last_event_time > 250) {
