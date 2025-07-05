@@ -106,7 +106,9 @@ void setup() {
   });
 
   server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", String(rotations));
+    char rotation_data[12];
+    snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
+    request->send(200, "text/plain", rotation_data);
   });
 
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
