@@ -114,9 +114,7 @@ String processor(const String& var){
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("
-
-Serial monitor started.");
+  Serial.println("\n\nSerial monitor started.");
 
   // Connect to WiFi
   Serial.print("Connecting to WiFi...");
@@ -125,8 +123,7 @@ Serial monitor started.");
     delay(500);
     Serial.print(".");
   }
-  Serial.println("
-WiFi connected!");
+  Serial.println("\nWiFi connected!");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
@@ -168,8 +165,7 @@ WiFi connected!");
   // SSE endpoint
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      Serial.printf("Client reconnected! Last message ID that it got is: %u
-", client->lastId());
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
     }
     client->send("hello!", NULL, millis(), 1000);
   });
