@@ -86,12 +86,21 @@ void setup() {
 
   // Initialize MPU6050
   Serial.println("Initializing MPU6050...");
-  if (!mpu.begin()) {
+  delay(100); // Wait for the sensor to power up
+  int retries = 5;
+  while (!mpu.begin() && retries > 0) {
+    Serial.println("Failed to find MPU6050 chip. Retrying...");
+    delay(500);
+    retries--;
+  }
+
+  if (retries == 0) {
     Serial.println("Failed to find MPU6050 chip. Check wiring.");
     while (1) {
       delay(10);
     }
   }
+
   Serial.println("MPU6050 Found!");
   mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
   mpu.setGyroRange(MPU6050_RANGE_500_DEG);
