@@ -1,0 +1,8 @@
+Brief: 
+Create an ESP8266 PlatformIO project which uses the D1 Mini and popular MPU-6050 Accelerometer to track movement of an exercise bike (attached to the pedal). 
+We will connect to WiFi using hard-coded ssid and password. There will be pedal rotations stored in LittleFS file. The data will be exposed via web server hosted on ESP8266. 
+The project is done with PlatformIO. 
+
+In web server control panel we need to show rotations, and have a re-set button. 
+
+We need a README also with install, usage instructions including D1 Mini and Accelerometer breadboard wiring (in markdown). 
