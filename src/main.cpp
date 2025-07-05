@@ -95,7 +95,7 @@ void setup() {
 
   Serial.println("MPU6050 Found!");
   mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   Serial.println("MPU6050 configured.");
 
@@ -156,8 +156,11 @@ void loop() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
-  // Calculate angle from gyroscope data with deadzone
-  const float gyroDeadzone = 0.1;  // degrees/s threshold
+  // Calculate angle from gyroscope data
+  unsigned long current_time = millis();
+  float delta = (current_time - last_update_time) / 1000.0;
+  last_update_time = current_time;
+  
   float gyroValue;
   switch(rotation_axis) {
     case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
@@ -165,12 +168,10 @@ void loop() {
     case 2: gyroValue = g.gyro.z; break;
     default: gyroValue = g.gyro.y;
   }
-  float gyroY = (abs(gyroValue) > gyroDeadzone) ? gyroValue : 0;
-  float angle = last_angle + gyroY * (millis() - last_update_time) / 1000.0;
-  last_update_time = millis();
+  float angle = last_angle + gyroValue * delta;
 
   // Rotation detection with threshold
-  const float rotationThreshold = 180.0;  // degrees
+  const float rotationThreshold = 30.0;  // degrees
   if (angle >= rotationThreshold) {
     rotations++;
     angle -= 360;
@@ -186,11 +187,13 @@ void loop() {
   if (debug_mode) {
     char debug_data[200];
     snprintf(debug_data, sizeof(debug_data), 
-             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f", 
+             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f | dT: %.4f | gVal: %.2f", 
              a.acceleration.x, a.acceleration.y, a.acceleration.z,
              g.gyro.x, g.gyro.y, g.gyro.z,
              rotations,
-             angle);
+             angle,
+             delta,
+             gyroValue);
     Serial.println(debug_data);
     debug_events.send(debug_data, "debug", millis());
   }
