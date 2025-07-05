@@ -8,8 +8,8 @@
 #include <LittleFS.h>
 
 // WiFi credentials
-const char* ssid = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+const char* ssid = "HUAWEI-B315-3346";
+const char* password = "T0LTE0Q24JD";
 
 // MPU-6050 sensor object
 Adafruit_MPU6050 mpu;
