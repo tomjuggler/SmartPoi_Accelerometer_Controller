@@ -195,33 +195,6 @@ void loop() {
     debug_events.send(debug_data, "debug", millis());
   }
 
-  // Calculate angle from gyroscope data with deadzone
-  const float gyroDeadzone = 0.1;  // degrees/s threshold
-  float gyroValue;
-  switch(rotation_axis) {
-    case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
-    case 1: gyroValue = g.gyro.y; break;
-    case 2: gyroValue = g.gyro.z; break;
-    default: gyroValue = g.gyro.y;
-  }
-  float gyroY = (abs(gyroValue) > gyroDeadzone) ? gyroValue : 0;
-  float angle = last_angle + gyroY * (millis() - last_update_time) / 1000.0;
-  last_update_time = millis();
-
-  // Rotation detection with threshold
-  const float rotationThreshold = 180.0;  // degrees
-  if (angle >= rotationThreshold) {
-    rotations++;
-    angle -= 360;
-    saveRotations();
-    last_angle = angle;  // Reset immediately after detection
-  } else if (angle < 0) {
-    angle += 360;
-    last_angle = angle;
-  } else {
-    last_angle = angle;
-  }
-
   // Send SSE event every 250ms
   if (millis() - last_event_time > 250) {
     char rotation_data[12];
