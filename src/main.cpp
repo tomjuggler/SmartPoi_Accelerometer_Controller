@@ -157,12 +157,13 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   if (debug_mode) {
-    char debug_data[150];
+    char debug_data[200];
     snprintf(debug_data, sizeof(debug_data), 
-             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rotations: %d", 
+             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f", 
              a.acceleration.x, a.acceleration.y, a.acceleration.z,
              g.gyro.x, g.gyro.y, g.gyro.z,
-             rotations);
+             rotations,
+             angle);
     Serial.println(debug_data);
     debug_events.send(debug_data, "debug", millis());
   }
@@ -171,7 +172,7 @@ void loop() {
   const float gyroDeadzone = 0.1;  // degrees/s threshold
   float gyroValue;
   switch(rotation_axis) {
-    case 0: gyroValue = g.gyro.x; break;
+    case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
     case 1: gyroValue = g.gyro.y; break;
     case 2: gyroValue = g.gyro.z; break;
     default: gyroValue = g.gyro.y;
@@ -181,7 +182,7 @@ void loop() {
   last_update_time = millis();
 
   // Rotation detection with threshold
-  const float rotationThreshold = 350.0;  // degrees
+  const float rotationThreshold = 180.0;  // degrees
   if (angle >= rotationThreshold) {
     rotations++;
     angle -= 360;
