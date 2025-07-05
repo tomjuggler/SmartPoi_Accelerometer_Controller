@@ -159,9 +159,10 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   if (debug_mode) {
-    String debug_data = "X: " + String(a.acceleration.x) + ", Y: " + String(a.acceleration.y) + ", Z: " + String(a.acceleration.z);
+    char debug_data[100];
+    snprintf(debug_data, sizeof(debug_data), "X: %.2f, Y: %.2f, Z: %.2f", a.acceleration.x, a.acceleration.y, a.acceleration.z);
     Serial.println(debug_data);
-    debug_events.send(debug_data.c_str(), "debug", millis());
+    debug_events.send(debug_data, "debug", millis());
   }
 
   // Calculate angle from gyroscope data
@@ -181,7 +182,9 @@ void loop() {
 
   // Send SSE event every 250ms
   if (millis() - last_event_time > 250) {
-    events.send(String(rotations).c_str(), "rotation", millis());
+    char rotation_data[12];
+    snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
+    events.send(rotation_data, "rotation", millis());
     last_event_time = millis();
   }
 
