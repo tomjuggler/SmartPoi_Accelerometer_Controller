@@ -16,4 +16,9 @@ if (!!window.EventSource) {
   source.addEventListener('rotation', function(e) {
     document.getElementById('rotations').innerHTML = e.data;
   }, false);
+
+  var debug_source = new EventSource('/debug');
+  debug_source.addEventListener('debug', function(e) {
+    console.log(e.data);
+  }, false);
 }

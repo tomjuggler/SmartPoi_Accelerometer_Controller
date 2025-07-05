@@ -14,6 +14,7 @@ Adafruit_MPU6050 mpu;
 // Web server on port 80
 AsyncWebServer server(80);
 AsyncEventSource events("/events");
+AsyncEventSource debug_events("/debug");
 
 // Rotation tracking
 int rotations = 0;
@@ -127,6 +128,16 @@ void setup() {
   });
   server.addHandler(&events);
 
+  if (debug_mode) {
+    debug_events.onConnect([](AsyncEventSourceClient *client){
+      if(client->lastId()){
+        Serial.printf("Debug client reconnected! Last message ID that it got is: %u\n", client->lastId());
+      }
+      client->send("Debug mode enabled!", NULL, millis(), 1000);
+    });
+    server.addHandler(&debug_events);
+  }
+
 
   // Start server
   server.begin();
@@ -139,12 +150,9 @@ void loop() {
   mpu.getEvent(&a, &g, &temp);
 
   if (debug_mode) {
-    Serial.print("X: ");
-    Serial.print(a.acceleration.x);
-    Serial.print(", Y: ");
-    Serial.print(a.acceleration.y);
-    Serial.print(", Z: ");
-    Serial.println(a.acceleration.z);
+    String debug_data = "X: " + String(a.acceleration.x) + ", Y: " + String(a.acceleration.y) + ", Z: " + String(a.acceleration.z);
+    Serial.println(debug_data);
+    debug_events.send(debug_data.c_str(), "debug", millis());
   }
 
   // Calculate angle from gyroscope data
