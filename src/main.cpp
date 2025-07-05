@@ -53,14 +53,6 @@ void saveRotations() {
   }
 }
 
-// Replace placeholders in the HTML
-String processor(const String& var){
-  if(var == "ROTATIONS"){
-    return String(rotations);
-  }
-  return String();
-}
-
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\nSerial monitor started.");
@@ -109,8 +101,12 @@ void setup() {
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/index.html", "text/html", false, processor);
+    request->send(LittleFS, "/index.html", "text/html");
     Serial.println("Client connected to root.");
+  });
+
+  server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", String(rotations));
   });
 
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -124,7 +120,7 @@ void setup() {
   server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
     rotations = 0;
     saveRotations();
-    request->send(LittleFS, "/index.html", "text/html", false, processor);
+    request->send(LittleFS, "/index.html", "text/html");
     Serial.println("Rotations reset.");
   });
 

@@ -1,3 +1,11 @@
+window.onload = function() {
+  fetch("/initial_rotations")
+    .then(response => response.text())
+    .then(data => {
+      document.getElementById("rotations").innerHTML = data;
+    });
+};
+
 if (!!window.EventSource) {
   var source = new EventSource('/events');
 
