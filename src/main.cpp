@@ -8,6 +8,10 @@
 #include <LittleFS.h>
 #include "secrets.h"
 
+// Watchdog timer for crash recovery
+#include <Ticker.h>
+Ticker watchdogTicker;
+
 // MPU-6050 sensor object
 Adafruit_MPU6050 mpu;
 
@@ -21,6 +25,10 @@ int rotations = 0;
 float last_angle = 0;
 unsigned long last_update_time = 0;
 unsigned long last_event_time = 0;
+
+// Stability tracking
+unsigned long last_watchdog_feed = 0;
+bool mpu_initialized = false;
 
 // File for storing rotations
 #define ROTATIONS_FILE "/rotations.txt"
@@ -38,20 +46,43 @@ void saveRotations() {
   }
 }
 
+// Watchdog timer callback
+void watchdogCallback() {
+  if (millis() - last_watchdog_feed > 10000) { // 10 seconds without feeding
+    ESP.restart();
+  }
+}
+
+// Feed watchdog timer
+void feedWatchdog() {
+  last_watchdog_feed = millis();
+}
+
 void setup() {
   // Serial.begin(115200);
   // Serial.println("\n\nSerial monitor started.");
 
-  // Connect to WiFi
+  // Initialize watchdog timer
+  watchdogTicker.attach(1, watchdogCallback); // Check every second
+  feedWatchdog();
+
+  // Connect to WiFi with timeout
   // Serial.print("Connecting to WiFi...");
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  unsigned long wifiStart = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
     delay(500);
     // Serial.print(".");
+    feedWatchdog();
   }
-  // Serial.println("\nWiFi connected!");
-  // Serial.print("IP address: ");
-  // Serial.println(WiFi.localIP());
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    // Serial.println("\nWiFi connection failed! Continuing without WiFi...");
+  } else {
+    // Serial.println("\nWiFi connected!");
+    // Serial.print("IP address: ");
+    // Serial.println(WiFi.localIP());
+  }
 
   // Initialize LittleFS
   if(!LittleFS.begin()){
@@ -69,20 +100,20 @@ void setup() {
     // Serial.println("Failed to find MPU6050 chip. Retrying...");
     delay(500);
     retries--;
+    feedWatchdog();
   }
 
   if (retries == 0) {
     // Serial.println("Failed to find MPU6050 chip. Check wiring.");
-    while (1) {
-      delay(10);
-    }
+    mpu_initialized = false;
+  } else {
+    // Serial.println("MPU6050 Found!");
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+    // Serial.println("MPU6050 configured.");
+    mpu_initialized = true;
   }
-
-  // Serial.println("MPU6050 Found!");
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-  // Serial.println("MPU6050 configured.");
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -139,53 +170,57 @@ void setup() {
 
 void loop() {
   yield(); // Allow WiFi stack to process
+  feedWatchdog();
   
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-  yield(); // Yield after sensor read
+  if (mpu_initialized) {
+    sensors_event_t a, g, temp;
+    if (mpu.getEvent(&a, &g, &temp)) {
+      yield(); // Yield after sensor read
 
-  // Calculate angle from gyroscope data
-  unsigned long current_time = millis();
-  float delta = (current_time - last_update_time) / 1000.0;
-  last_update_time = current_time;
-  
-  float gyroValue;
-  switch(rotation_axis) {
-    case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
-    case 1: gyroValue = g.gyro.y; break;
-    case 2: gyroValue = g.gyro.z; break;
-    default: gyroValue = g.gyro.y;
-  }
-  // Only accumulate positive gyro values (forward rotation)
-  float angle;
-  if (gyroValue > 0) {
-    angle = last_angle + gyroValue * delta;
-  } else {
-    angle = last_angle;
-  }
+      // Calculate angle from gyroscope data
+      unsigned long current_time = millis();
+      float delta = (current_time - last_update_time) / 1000.0;
+      last_update_time = current_time;
+      
+      float gyroValue;
+      switch(rotation_axis) {
+        case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
+        case 1: gyroValue = g.gyro.y; break;
+        case 2: gyroValue = g.gyro.z; break;
+        default: gyroValue = g.gyro.y;
+      }
+      // Only accumulate positive gyro values (forward rotation)
+      float angle;
+      if (gyroValue > 0) {
+        angle = last_angle + gyroValue * delta;
+      } else {
+        angle = last_angle;
+      }
 
-  // Rotation detection with lower threshold
-  const float rotationThreshold = 10.0;  // degrees
-  if (angle >= rotationThreshold) {
-    rotations++;
-    angle = 0;  // Reset angle after detection
-    saveRotations();
-  }
-  last_angle = angle;
+      // Rotation detection with lower threshold
+      const float rotationThreshold = 10.0;  // degrees
+      if (angle >= rotationThreshold) {
+        rotations++;
+        angle = 0;  // Reset angle after detection
+        saveRotations();
+      }
+      last_angle = angle;
 
-  if (debug_mode) {
-    char debug_data[256];
-    snprintf(debug_data, sizeof(debug_data), 
-             "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f | dT: %.4f | gVal: %.2f", 
-             a.acceleration.x, a.acceleration.y, a.acceleration.z,
-             g.gyro.x, g.gyro.y, g.gyro.z,
-             rotations,
-             angle,
-             delta,
-             gyroValue);
-    // Serial.println(debug_data);
-    yield(); // Yield before debug event
-    debug_events.send(debug_data, "debug", millis());
+      if (debug_mode) {
+        char debug_data[256];
+        snprintf(debug_data, sizeof(debug_data), 
+                 "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f | dT: %.4f | gVal: %.2f", 
+                 a.acceleration.x, a.acceleration.y, a.acceleration.z,
+                 g.gyro.x, g.gyro.y, g.gyro.z,
+                 rotations,
+                 angle,
+                 delta,
+                 gyroValue);
+        // Serial.println(debug_data);
+        yield(); // Yield before debug event
+        debug_events.send(debug_data, "debug", millis());
+      }
+    }
   }
 
   // Send SSE event every 500ms (reduced frequency)
