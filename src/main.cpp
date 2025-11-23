@@ -27,9 +27,15 @@ unsigned long last_update_time = 0;
 unsigned long last_event_time = 0;
 
 // Rotation speed detection
-float gyro_threshold = 50.0;  // degrees per second threshold for rotation detection
+float gyro_threshold = 100.0;  // degrees per second threshold for rotation detection
 bool rotation_detected = false;
 unsigned long last_rotation_time = 0;
+
+// Sensor calibration
+float gyro_offset = 0.0;
+bool calibration_complete = false;
+unsigned long calibration_start = 0;
+const unsigned long CALIBRATION_TIME = 3000;  // 3 seconds
 
 // Stability tracking
 unsigned long last_watchdog_feed = 0;
@@ -182,6 +188,10 @@ void setup() {
   server.begin();
   // Serial.println("Web server started.");
   last_update_time = millis();
+  
+  // Start sensor calibration
+  calibration_start = millis();
+  // Serial.println("Starting sensor calibration...");
 }
 
 void loop() {
@@ -205,17 +215,33 @@ void loop() {
       // Convert from radians to degrees per second
       float rotation_speed = gyroValue * 57.2958;  // rad/s to deg/s
       
-      // Detect rotation when speed exceeds threshold
-      if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
-        rotation_detected = true;
-        rotations++;
-        saveRotations();
-        last_rotation_time = millis();
-      }
-      
-      // Reset detection after rotation completes (debounce)
-      if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
-        rotation_detected = false;
+      // Sensor calibration phase
+      if (!calibration_complete) {
+        if (millis() - calibration_start < CALIBRATION_TIME) {
+          // Accumulate gyro readings for offset calculation
+          gyro_offset += rotation_speed;
+        } else {
+          // Calculate average offset and complete calibration
+          gyro_offset /= (CALIBRATION_TIME / 50.0);  // Average over calibration period
+          calibration_complete = true;
+          // Serial.printf("Calibration complete. Offset: %.2f deg/s\n", gyro_offset);
+        }
+      } else {
+        // Apply calibration offset
+        rotation_speed -= gyro_offset;
+        
+        // Detect rotation when speed exceeds threshold
+        if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
+          rotation_detected = true;
+          rotations++;
+          saveRotations();
+          last_rotation_time = millis();
+        }
+        
+        // Reset detection after rotation completes (debounce)
+        if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
+          rotation_detected = false;
+        }
       }
 
       if (debug_mode) {
@@ -234,8 +260,8 @@ void loop() {
     }
   }
 
-  // Send SSE event every 500ms (reduced frequency)
-  if (millis() - last_event_time > 500) {
+  // Send SSE event more frequently for responsive web interface
+  if (millis() - last_event_time > 100) {
     yield(); // Yield before network operation
     char rotation_data[12];
     snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
