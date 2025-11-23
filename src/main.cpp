@@ -153,6 +153,8 @@ void setup() {
 }
 
 void loop() {
+  yield(); // Allow WiFi stack to process
+  
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
@@ -199,14 +201,14 @@ void loop() {
     debug_events.send(debug_data, "debug", millis());
   }
 
-  // Send SSE event every 250ms
-  if (millis() - last_event_time > 250) {
+  // Send SSE event every 500ms (reduced frequency)
+  if (millis() - last_event_time > 500) {
     char rotation_data[12];
     snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
     events.send(rotation_data, "rotation", millis());
     last_event_time = millis();
   }
 
-  // Remove delay to increase sampling rate
+  delay(10); // Increased delay to reduce CPU load
 }
 
