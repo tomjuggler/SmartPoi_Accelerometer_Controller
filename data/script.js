@@ -54,13 +54,21 @@ function updateSpeedDisplay(current, max, avg) {
 function updateRotationState(isRotating, timeSinceMovement) {
   const statusElement = document.getElementById('rotation-status');
   const timeElement = document.getElementById('time-since-movement');
+  const stoppedStatusElement = document.getElementById('stopped-status');
   
   if (isRotating) {
     statusElement.innerHTML = 'ROTATING';
     statusElement.style.color = '#4CAF50';
+    stoppedStatusElement.style.display = 'none';
   } else {
     statusElement.innerHTML = 'STOPPED';
     statusElement.style.color = '#f44336';
+    // Show stopped status when stopped for more than 2 seconds
+    if (timeSinceMovement > 2000) {
+      stoppedStatusElement.style.display = 'flex';
+    } else {
+      stoppedStatusElement.style.display = 'none';
+    }
   }
   
   timeElement.innerHTML = (timeSinceMovement / 1000).toFixed(1) + 's';
