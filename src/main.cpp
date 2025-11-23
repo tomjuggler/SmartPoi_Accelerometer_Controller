@@ -200,16 +200,11 @@ void loop() {
         case 2: gyroValue = g.gyro.z; break;
         default: gyroValue = g.gyro.y;
       }
-      // Only accumulate positive gyro values (forward rotation)
-      float angle;
-      if (gyroValue > 0) {
-        angle = last_angle + gyroValue * delta;
-      } else {
-        angle = last_angle;
-      }
+      // Accumulate absolute rotation (both directions contribute)
+      float angle = last_angle + fabs(gyroValue) * delta;
 
-      // Rotation detection with lower threshold
-      const float rotationThreshold = 10.0;  // degrees
+      // Rotation detection - full 360 degree rotation
+      const float rotationThreshold = 360.0;  // degrees (full rotation)
       if (angle >= rotationThreshold) {
         rotations++;
         angle = 0;  // Reset angle after detection
