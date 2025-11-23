@@ -90,7 +90,18 @@ void setup() {
     return;
   }
   // Serial.println("LittleFS mounted successfully.");
-  rotations = 0; // Always reset rotations to 0 on startup
+  
+  // Load saved rotations from file (preserve across restarts)
+  File file = LittleFS.open(ROTATIONS_FILE, "r");
+  if (file) {
+    String content = file.readString();
+    rotations = content.toInt();
+    file.close();
+    // Serial.printf("Loaded rotations from file: %d\n", rotations);
+  } else {
+    rotations = 0; // Initialize to 0 if no file exists
+    // Serial.println("No rotations file found, starting from 0.");
+  }
 
   // Initialize MPU6050
   // Serial.println("Initializing MPU6050...");
@@ -113,6 +124,7 @@ void setup() {
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
     // Serial.println("MPU6050 configured.");
     mpu_initialized = true;
+  }
   }
 
   // Web server routes
