@@ -25,21 +25,6 @@ unsigned long last_event_time = 0;
 // File for storing rotations
 #define ROTATIONS_FILE "/rotations.txt"
 
-// Function to read rotations from LittleFS
-void readRotations() {
-  if (LittleFS.exists(ROTATIONS_FILE)) {
-    File file = LittleFS.open(ROTATIONS_FILE, "r");
-    if (file) {
-      rotations = file.readString().toInt();
-      file.close();
-      // Serial.print("Read rotations from file: ");
-      // Serial.println(rotations);
-    }
-  } else {
-    // Serial.println("Rotations file not found. Starting at 0.");
-  }
-}
-
 // Function to save rotations to LittleFS
 void saveRotations() {
   File file = LittleFS.open(ROTATIONS_FILE, "w");
@@ -74,7 +59,7 @@ void setup() {
     return;
   }
   // Serial.println("LittleFS mounted successfully.");
-  readRotations();
+  rotations = 0; // Always reset rotations to 0 on startup
 
   // Initialize MPU6050
   // Serial.println("Initializing MPU6050...");
@@ -215,4 +200,3 @@ void loop() {
   delay(50); // Significantly increased delay to reduce CPU load
   yield(); // Final yield for good measure
 }
-
