@@ -70,27 +70,27 @@ void feedWatchdog() {
 }
 
 void setup() {
-  // Serial.begin(115200);
-  // Serial.println("\n\nSerial monitor started.");
+  Serial.begin(115200);
+  Serial.println("\n\nSerial monitor started.");
 
   // Initialize watchdog timer
   watchdogTicker.attach(1, watchdogCallback); // Check every second
   feedWatchdog();
 
   // Connect to WiFi with timeout
-  // Serial.print("Connecting to WiFi...");
+  Serial.print("Connecting to WiFi...");
   WiFi.begin(ssid, password);
   unsigned long wifiStart = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
     delay(500);
-    // Serial.print(".");
+    Serial.print(".");
     feedWatchdog();
   }
   
   if (WiFi.status() != WL_CONNECTED) {
-    // Serial.println("\nWiFi connection failed! Continuing without WiFi...");
+    Serial.println("\nWiFi connection failed! Continuing without WiFi...");
   } else {
-    // Serial.println("\nWiFi connected!");
+    Serial.println("\nWiFi connected!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
   }
