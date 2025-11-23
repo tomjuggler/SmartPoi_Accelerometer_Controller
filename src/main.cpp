@@ -186,7 +186,7 @@ void loop() {
   last_angle = angle;
 
   if (debug_mode) {
-    char debug_data[200];
+    char debug_data[256];
     snprintf(debug_data, sizeof(debug_data), 
              "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f | dT: %.4f | gVal: %.2f", 
              a.acceleration.x, a.acceleration.y, a.acceleration.z,
