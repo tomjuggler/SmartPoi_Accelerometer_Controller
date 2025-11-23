@@ -120,7 +120,7 @@ void setup() {
   } else {
     // Serial.println("MPU6050 Found!");
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);  // More sensitive for rotation detection
+    mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
     // Serial.println("MPU6050 configured.");
     mpu_initialized = true;
@@ -200,11 +200,16 @@ void loop() {
         case 2: gyroValue = g.gyro.z; break;
         default: gyroValue = g.gyro.y;
       }
-      // Accumulate rotation (both directions contribute)
-      float angle = last_angle + fabs(gyroValue) * delta;
+      // Only accumulate positive gyro values (forward rotation)
+      float angle;
+      if (gyroValue > 0) {
+        angle = last_angle + gyroValue * delta;
+      } else {
+        angle = last_angle;
+      }
 
-      // Rotation detection - more sensitive threshold
-      const float rotationThreshold = 180.0;  // degrees (half rotation)
+      // Rotation detection with lower threshold
+      const float rotationThreshold = 10.0;  // degrees
       if (angle >= rotationThreshold) {
         rotations++;
         angle = 0;  // Reset angle after detection
