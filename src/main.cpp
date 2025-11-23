@@ -91,8 +91,8 @@ void setup() {
     // Serial.println("\nWiFi connection failed! Continuing without WiFi...");
   } else {
     // Serial.println("\nWiFi connected!");
-    // Serial.print("IP address: ");
-    // Serial.println(WiFi.localIP());
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
   }
 
   // Initialize LittleFS
