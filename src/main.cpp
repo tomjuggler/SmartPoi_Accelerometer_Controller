@@ -147,7 +147,6 @@ void setup() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
   });
-  });
 
   server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
     char rotation_data[12];
@@ -186,7 +185,6 @@ void setup() {
     });
     server.addHandler(&debug_events);
   }
-
 
   // Start server
   server.begin();
@@ -227,7 +225,6 @@ void loop() {
           // Calculate average offset and complete calibration
           gyro_offset /= (CALIBRATION_TIME / 50.0);  // Average over calibration period
           calibration_complete = true;
-        }
         }
       } else {
         // Apply calibration offset
@@ -289,7 +286,7 @@ void loop() {
                  a.acceleration.x, a.acceleration.y, a.acceleration.z,
                  g.gyro.x, g.gyro.y, g.gyro.z,
                  rotations,
-                 rotation_speed,
+                 current_rotation_speed,
                  rotation_detected);
         yield(); // Yield before debug event
         debug_events.send(debug_data, "debug", millis());
