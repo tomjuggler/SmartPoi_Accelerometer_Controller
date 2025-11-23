@@ -32,11 +32,11 @@ void readRotations() {
     if (file) {
       rotations = file.readString().toInt();
       file.close();
-      Serial.print("Read rotations from file: ");
-      Serial.println(rotations);
+      // Serial.print("Read rotations from file: ");
+      // Serial.println(rotations);
     }
   } else {
-    Serial.println("Rotations file not found. Starting at 0.");
+    // Serial.println("Rotations file not found. Starting at 0.");
   }
 }
 
@@ -46,63 +46,63 @@ void saveRotations() {
   if (file) {
     file.print(rotations);
     file.close();
-    Serial.print("Saved rotations to file: ");
-    Serial.println(rotations);
+    // Serial.print("Saved rotations to file: ");
+    // Serial.println(rotations);
   } else {
-    Serial.println("Error saving rotations to file.");
+    // Serial.println("Error saving rotations to file.");
   }
 }
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println("\n\nSerial monitor started.");
+  // Serial.begin(115200);
+  // Serial.println("\n\nSerial monitor started.");
 
   // Connect to WiFi
-  Serial.print("Connecting to WiFi...");
+  // Serial.print("Connecting to WiFi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    // Serial.print(".");
   }
-  Serial.println("\nWiFi connected!");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  // Serial.println("\nWiFi connected!");
+  // Serial.print("IP address: ");
+  // Serial.println(WiFi.localIP());
 
   // Initialize LittleFS
   if(!LittleFS.begin()){
-    Serial.println("An Error has occurred while mounting LittleFS");
+    // Serial.println("An Error has occurred while mounting LittleFS");
     return;
   }
-  Serial.println("LittleFS mounted successfully.");
+  // Serial.println("LittleFS mounted successfully.");
   readRotations();
 
   // Initialize MPU6050
-  Serial.println("Initializing MPU6050...");
+  // Serial.println("Initializing MPU6050...");
   delay(100); // Wait for the sensor to power up
   int retries = 5;
   while (!mpu.begin() && retries > 0) {
-    Serial.println("Failed to find MPU6050 chip. Retrying...");
+    // Serial.println("Failed to find MPU6050 chip. Retrying...");
     delay(500);
     retries--;
   }
 
   if (retries == 0) {
-    Serial.println("Failed to find MPU6050 chip. Check wiring.");
+    // Serial.println("Failed to find MPU6050 chip. Check wiring.");
     while (1) {
       delay(10);
     }
   }
 
-  Serial.println("MPU6050 Found!");
+  // Serial.println("MPU6050 Found!");
   mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
   mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-  Serial.println("MPU6050 configured.");
+  // Serial.println("MPU6050 configured.");
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
-    Serial.println("Client connected to root.");
+    // Serial.println("Client connected to root.");
   });
 
   server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -123,13 +123,13 @@ void setup() {
     rotations = 0;
     saveRotations();
     request->send(LittleFS, "/index.html", "text/html");
-    Serial.println("Rotations reset.");
+    // Serial.println("Rotations reset.");
   });
 
   // SSE endpoint
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+      // Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
     }
     client->send("hello!", NULL, millis(), 1000);
   });
@@ -138,7 +138,7 @@ void setup() {
   if (debug_mode) {
     debug_events.onConnect([](AsyncEventSourceClient *client){
       if(client->lastId()){
-        Serial.printf("Debug client reconnected! Last message ID that it got is: %u\n", client->lastId());
+        // Serial.printf("Debug client reconnected! Last message ID that it got is: %u\n", client->lastId());
       }
       client->send("Debug mode enabled!", NULL, millis(), 1000);
     });
@@ -148,7 +148,7 @@ void setup() {
 
   // Start server
   server.begin();
-  Serial.println("Web server started.");
+  // Serial.println("Web server started.");
   last_update_time = millis();
 }
 
@@ -198,7 +198,7 @@ void loop() {
              angle,
              delta,
              gyroValue);
-    Serial.println(debug_data);
+    // Serial.println(debug_data);
     yield(); // Yield before debug event
     debug_events.send(debug_data, "debug", millis());
   }
