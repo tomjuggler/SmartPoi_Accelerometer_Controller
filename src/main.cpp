@@ -26,6 +26,11 @@ float last_angle = 0;
 unsigned long last_update_time = 0;
 unsigned long last_event_time = 0;
 
+// Rotation speed detection
+float gyro_threshold = 50.0;  // degrees per second threshold for rotation detection
+bool rotation_detected = false;
+unsigned long last_rotation_time = 0;
+
 // Stability tracking
 unsigned long last_watchdog_feed = 0;
 bool mpu_initialized = false;
@@ -188,11 +193,7 @@ void loop() {
     if (mpu.getEvent(&a, &g, &temp)) {
       yield(); // Yield after sensor read
 
-      // Calculate angle from gyroscope data
-      unsigned long current_time = millis();
-      float delta = (current_time - last_update_time) / 1000.0;
-      last_update_time = current_time;
-      
+      // Direct rotation speed detection using gyro angular velocity
       float gyroValue;
       switch(rotation_axis) {
         case 0: gyroValue = -g.gyro.x; break;  // Invert sign for X-axis
@@ -200,33 +201,32 @@ void loop() {
         case 2: gyroValue = g.gyro.z; break;
         default: gyroValue = g.gyro.y;
       }
-      // Only accumulate positive gyro values (forward rotation)
-      float angle;
-      if (gyroValue > 0) {
-        angle = last_angle + gyroValue * delta;
-      } else {
-        angle = last_angle;
-      }
-
-      // Rotation detection with lower threshold
-      const float rotationThreshold = 10.0;  // degrees
-      if (angle >= rotationThreshold) {
+      
+      // Convert from radians to degrees per second
+      float rotation_speed = gyroValue * 57.2958;  // rad/s to deg/s
+      
+      // Detect rotation when speed exceeds threshold
+      if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
+        rotation_detected = true;
         rotations++;
-        angle = 0;  // Reset angle after detection
         saveRotations();
+        last_rotation_time = millis();
       }
-      last_angle = angle;
+      
+      // Reset detection after rotation completes (debounce)
+      if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
+        rotation_detected = false;
+      }
 
       if (debug_mode) {
         char debug_data[256];
         snprintf(debug_data, sizeof(debug_data), 
-                 "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Ang: %.2f | dT: %.4f | gVal: %.2f", 
+                 "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Speed: %.2f deg/s | Detected: %d", 
                  a.acceleration.x, a.acceleration.y, a.acceleration.z,
                  g.gyro.x, g.gyro.y, g.gyro.z,
                  rotations,
-                 angle,
-                 delta,
-                 gyroValue);
+                 rotation_speed,
+                 rotation_detected);
         // Serial.println(debug_data);
         yield(); // Yield before debug event
         debug_events.send(debug_data, "debug", millis());
