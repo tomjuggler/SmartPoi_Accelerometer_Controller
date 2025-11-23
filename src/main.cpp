@@ -157,6 +157,7 @@ void loop() {
   
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
+  yield(); // Yield after sensor read
 
   // Calculate angle from gyroscope data
   unsigned long current_time = millis();
@@ -198,17 +199,20 @@ void loop() {
              delta,
              gyroValue);
     Serial.println(debug_data);
+    yield(); // Yield before debug event
     debug_events.send(debug_data, "debug", millis());
   }
 
   // Send SSE event every 500ms (reduced frequency)
   if (millis() - last_event_time > 500) {
+    yield(); // Yield before network operation
     char rotation_data[12];
     snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
     events.send(rotation_data, "rotation", millis());
     last_event_time = millis();
   }
 
-  delay(10); // Increased delay to reduce CPU load
+  delay(50); // Significantly increased delay to reduce CPU load
+  yield(); // Final yield for good measure
 }
 
