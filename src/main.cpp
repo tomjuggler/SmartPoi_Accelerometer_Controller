@@ -125,7 +125,6 @@ void setup() {
     // Serial.println("MPU6050 configured.");
     mpu_initialized = true;
   }
-  }
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
