@@ -332,7 +332,7 @@ void loop() {
     
     // Send rotation state
     char state_data[32];
-    snprintf(state_data, sizeof(state_data), "%d,%d", is_rotating, millis() - last_movement_time);
+    snprintf(state_data, sizeof(state_data), "%d,%ld", is_rotating, millis() - last_movement_time);
     events.send(state_data, "state", millis());
     
     last_event_time = millis();
