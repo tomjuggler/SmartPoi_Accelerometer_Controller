@@ -66,10 +66,6 @@ void saveRotations() {
   if (file) {
     file.print(rotations);
     file.close();
-    // Serial.print("Saved rotations to file: ");
-    // Serial.println(rotations);
-  } else {
-    // Serial.println("Error saving rotations to file.");
   }
 }
 
@@ -114,9 +110,10 @@ void setup() {
   // Initialize LittleFS
   if(!LittleFS.begin()){
     Serial.println("An Error has occurred while mounting LittleFS");
-    return;
+    // Continue without LittleFS
+  } else {
+    Serial.println("LittleFS mounted successfully.");
   }
-  Serial.println("LittleFS mounted successfully.");
   
   // Load saved rotations from file (preserve across restarts)
   File file = LittleFS.open(ROTATIONS_FILE, "r");
@@ -124,39 +121,32 @@ void setup() {
     String content = file.readString();
     rotations = content.toInt();
     file.close();
-    // Serial.printf("Loaded rotations from file: %d\n", rotations);
   } else {
     rotations = 0; // Initialize to 0 if no file exists
-    // Serial.println("No rotations file found, starting from 0.");
   }
 
   // Initialize MPU6050
-  // Serial.println("Initializing MPU6050...");
   delay(100); // Wait for the sensor to power up
   int retries = 5;
   while (!mpu.begin() && retries > 0) {
-    // Serial.println("Failed to find MPU6050 chip. Retrying...");
     delay(500);
     retries--;
     feedWatchdog();
   }
 
   if (retries == 0) {
-    // Serial.println("Failed to find MPU6050 chip. Check wiring.");
     mpu_initialized = false;
   } else {
-    // Serial.println("MPU6050 Found!");
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    // Serial.println("MPU6050 configured.");
     mpu_initialized = true;
   }
 
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
-    Serial.println("Client connected to root.");
+  });
   });
 
   server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -183,7 +173,6 @@ void setup() {
   // SSE endpoint
   events.onConnect([](AsyncEventSourceClient *client){
     if(client->lastId()){
-      // Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
     }
     client->send("hello!", NULL, millis(), 1000);
   });
@@ -192,7 +181,6 @@ void setup() {
   if (debug_mode) {
     debug_events.onConnect([](AsyncEventSourceClient *client){
       if(client->lastId()){
-        // Serial.printf("Debug client reconnected! Last message ID that it got is: %u\n", client->lastId());
       }
       client->send("Debug mode enabled!", NULL, millis(), 1000);
     });
@@ -207,7 +195,6 @@ void setup() {
   
   // Start sensor calibration
   calibration_start = millis();
-  // Serial.println("Starting sensor calibration...");
 }
 
 void loop() {
@@ -240,7 +227,7 @@ void loop() {
           // Calculate average offset and complete calibration
           gyro_offset /= (CALIBRATION_TIME / 50.0);  // Average over calibration period
           calibration_complete = true;
-          // Serial.printf("Calibration complete. Offset: %.2f deg/s\n", gyro_offset);
+        }
         }
       } else {
         // Apply calibration offset
@@ -304,7 +291,6 @@ void loop() {
                  rotations,
                  rotation_speed,
                  rotation_detected);
-        // Serial.println(debug_data);
         yield(); // Yield before debug event
         debug_events.send(debug_data, "debug", millis());
       }
