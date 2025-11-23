@@ -5,3 +5,64 @@ p { font-size: 1.5rem; }
 .button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;
   text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}
 .status { font-size: 1.0rem; color: #444; }
+
+.speed-container {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.speed-grid {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.speed-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.speed-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.speed-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.status-container {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f0f8ff;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.status-label {
+  font-size: 1.0rem;
+  color: #333;
+}
+
+.status-value {
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+}

@@ -10,6 +10,36 @@
     <span class="units">Rotations:</span>
     <span id="rotations">%ROTATIONS%</span>
   </p>
+  
+  <div class="speed-container">
+    <h3>Rotation Speed (deg/s)</h3>
+    <div class="speed-grid">
+      <div class="speed-item">
+        <span class="speed-label">Current:</span>
+        <span id="current-speed" class="speed-value">0.0</span>
+      </div>
+      <div class="speed-item">
+        <span class="speed-label">Max:</span>
+        <span id="max-speed" class="speed-value">0.0</span>
+      </div>
+      <div class="speed-item">
+        <span class="speed-label">Average:</span>
+        <span id="avg-speed" class="speed-value">0.0</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="status-container">
+    <div class="status-item">
+      <span class="status-label">Rotation State:</span>
+      <span id="rotation-status" class="status-value">STOPPED</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">Time Since Movement:</span>
+      <span id="time-since-movement" class="status-value">0.0s</span>
+    </div>
+  </div>
+  
   <p><a href="/reset"><button class="button">Reset</button></a></p>
   <p class="status">Server Status: <span id="server-status">Connecting...</span></p>
   <script src="script.js"></script>

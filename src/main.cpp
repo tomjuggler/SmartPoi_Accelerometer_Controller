@@ -26,16 +26,32 @@ float last_angle = 0;
 unsigned long last_update_time = 0;
 unsigned long last_event_time = 0;
 
-// Rotation speed detection
+// Rotation detection and tracking
 float gyro_threshold = 100.0;  // degrees per second threshold for rotation detection
 bool rotation_detected = false;
 unsigned long last_rotation_time = 0;
+
+// Dynamic speed tracking
+float current_rotation_speed = 0.0;  // degrees per second
+float max_rotation_speed = 0.0;
+float avg_rotation_speed = 0.0;
+unsigned long speed_samples = 0;
+bool is_rotating = false;
+unsigned long rotation_start_time = 0;
 
 // Sensor calibration
 float gyro_offset = 0.0;
 bool calibration_complete = false;
 unsigned long calibration_start = 0;
 const unsigned long CALIBRATION_TIME = 3000;  // 3 seconds
+
+// Filtering for smooth speed tracking
+float filtered_speed = 0.0;
+const float FILTER_ALPHA = 0.2;  // Low-pass filter coefficient
+
+// Pause/stopping detection
+unsigned long last_movement_time = 0;
+const unsigned long MOVEMENT_TIMEOUT = 2000;  // 2 seconds of no movement = stopped
 
 // Stability tracking
 unsigned long last_watchdog_feed = 0;
@@ -230,17 +246,52 @@ void loop() {
         // Apply calibration offset
         rotation_speed -= gyro_offset;
         
-        // Detect rotation when speed exceeds threshold
-        if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
-          rotation_detected = true;
-          rotations++;
-          saveRotations();
-          last_rotation_time = millis();
+        // Apply low-pass filter for smooth speed tracking
+        filtered_speed = (FILTER_ALPHA * fabs(rotation_speed)) + ((1.0 - FILTER_ALPHA) * filtered_speed);
+        current_rotation_speed = filtered_speed;
+        
+        // Update movement tracking
+        if (fabs(rotation_speed) > 10.0) {  // Minimum movement threshold
+          last_movement_time = millis();
         }
         
-        // Reset detection after rotation completes (debounce)
-        if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
-          rotation_detected = false;
+        // Detect rotation state changes
+        if (fabs(rotation_speed) > gyro_threshold && !is_rotating) {
+          is_rotating = true;
+          rotation_start_time = millis();
+          max_rotation_speed = 0.0;
+          speed_samples = 0;
+          avg_rotation_speed = 0.0;
+        }
+        
+        // Track rotation speed statistics
+        if (is_rotating) {
+          // Update max speed
+          if (current_rotation_speed > max_rotation_speed) {
+            max_rotation_speed = current_rotation_speed;
+          }
+          
+          // Update average speed
+          speed_samples++;
+          avg_rotation_speed = ((avg_rotation_speed * (speed_samples - 1)) + current_rotation_speed) / speed_samples;
+          
+          // Detect rotation completion (pulse detection)
+          if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
+            rotation_detected = true;
+            rotations++;
+            saveRotations();
+            last_rotation_time = millis();
+          }
+          
+          // Reset pulse detection after rotation completes
+          if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
+            rotation_detected = false;
+          }
+        }
+        
+        // Detect stopping/pause
+        if (is_rotating && (millis() - last_movement_time > MOVEMENT_TIMEOUT)) {
+          is_rotating = false;
         }
       }
 
@@ -263,9 +314,27 @@ void loop() {
   // Send SSE event more frequently for responsive web interface
   if (millis() - last_event_time > 100) {
     yield(); // Yield before network operation
+    
+    // Send rotation count
     char rotation_data[12];
     snprintf(rotation_data, sizeof(rotation_data), "%d", rotations);
     events.send(rotation_data, "rotation", millis());
+    
+    // Send speed data if rotating
+    if (is_rotating) {
+      char speed_data[64];
+      snprintf(speed_data, sizeof(speed_data), "%.1f,%.1f,%.1f", 
+               current_rotation_speed, max_rotation_speed, avg_rotation_speed);
+      events.send(speed_data, "speed", millis());
+    } else {
+      events.send("0,0,0", "speed", millis());
+    }
+    
+    // Send rotation state
+    char state_data[32];
+    snprintf(state_data, sizeof(state_data), "%d,%d", is_rotating, millis() - last_movement_time);
+    events.send(state_data, "state", millis());
+    
     last_event_time = millis();
   }
 
