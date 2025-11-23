@@ -97,10 +97,10 @@ void setup() {
 
   // Initialize LittleFS
   if(!LittleFS.begin()){
-    // Serial.println("An Error has occurred while mounting LittleFS");
+    Serial.println("An Error has occurred while mounting LittleFS");
     return;
   }
-  // Serial.println("LittleFS mounted successfully.");
+  Serial.println("LittleFS mounted successfully.");
   
   // Load saved rotations from file (preserve across restarts)
   File file = LittleFS.open(ROTATIONS_FILE, "r");
@@ -140,7 +140,7 @@ void setup() {
   // Web server routes
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/index.html", "text/html");
-    // Serial.println("Client connected to root.");
+    Serial.println("Client connected to root.");
   });
 
   server.on("/initial_rotations", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -186,7 +186,7 @@ void setup() {
 
   // Start server
   server.begin();
-  // Serial.println("Web server started.");
+  Serial.println("Web server started.");
   last_update_time = millis();
   
   // Start sensor calibration
