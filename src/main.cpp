@@ -14,38 +14,9 @@ Adafruit_MPU6050 mpu;
 
 
 
-// Rotation tracking
-int rotations = 0;
-float last_angle = 0;
-unsigned long last_update_time = 0;
-unsigned long last_event_time = 0;
-
-// Rotation detection and tracking
-float gyro_threshold = 100.0;  // degrees per second threshold for rotation detection
-bool rotation_detected = false;
-unsigned long last_rotation_time = 0;
-
-// Dynamic speed tracking
-float current_rotation_speed = 0.0;  // degrees per second
-float max_rotation_speed = 0.0;
-float avg_rotation_speed = 0.0;
-unsigned long speed_samples = 0;
+// Rotation detection
 bool is_rotating = false;
-unsigned long rotation_start_time = 0;
-
-// Sensor calibration
-float gyro_offset = 0.0;
-bool calibration_complete = false;
-unsigned long calibration_start = 0;
-const unsigned long CALIBRATION_TIME = 3000;  // 3 seconds
-
-// Filtering for smooth speed tracking
-float filtered_speed = 0.0;
-const float FILTER_ALPHA = 0.2;  // Low-pass filter coefficient
-
-// Pause/stopping detection
-unsigned long last_movement_time = 0;
-const unsigned long MOVEMENT_TIMEOUT = 2000;  // 2 seconds of no movement = stopped
+float gyro_threshold = 100.0;  // degrees per second threshold for rotation detection
 
 // Stability tracking
 unsigned long last_watchdog_feed = 0;
@@ -114,10 +85,6 @@ void setup() {
   }
 
   Serial.println("System initialized. LED indicates STOPPED status.");
-  last_update_time = millis();
-  
-  // Start sensor calibration
-  calibration_start = millis();
 }
 
 void loop() {
@@ -141,78 +108,19 @@ void loop() {
       // Convert from radians to degrees per second
       float rotation_speed = gyroValue * 57.2958;  // rad/s to deg/s
       
-      // Sensor calibration phase
-      if (!calibration_complete) {
-        if (millis() - calibration_start < CALIBRATION_TIME) {
-          // Accumulate gyro readings for offset calculation
-          gyro_offset += rotation_speed;
-        } else {
-          // Calculate average offset and complete calibration
-          gyro_offset /= (CALIBRATION_TIME / 50.0);  // Average over calibration period
-          calibration_complete = true;
-        }
-      } else {
-        // Apply calibration offset
-        rotation_speed -= gyro_offset;
-        
-        // Apply low-pass filter for smooth speed tracking
-        filtered_speed = (FILTER_ALPHA * fabs(rotation_speed)) + ((1.0 - FILTER_ALPHA) * filtered_speed);
-        current_rotation_speed = filtered_speed;
-        
-        // Update movement tracking
-        if (fabs(rotation_speed) > 10.0) {  // Minimum movement threshold
-          last_movement_time = millis();
-        }
-        
-        // Detect rotation state changes
-        if (fabs(rotation_speed) > gyro_threshold && !is_rotating) {
-          is_rotating = true;
-          rotation_start_time = millis();
-          max_rotation_speed = 0.0;
-          speed_samples = 0;
-          avg_rotation_speed = 0.0;
-        }
-        
-        // Track rotation speed statistics
-        if (is_rotating) {
-          // Update max speed
-          if (current_rotation_speed > max_rotation_speed) {
-            max_rotation_speed = current_rotation_speed;
-          }
-          
-          // Update average speed
-          speed_samples++;
-          avg_rotation_speed = ((avg_rotation_speed * (speed_samples - 1)) + current_rotation_speed) / speed_samples;
-          
-          // Detect rotation completion (pulse detection)
-          if (fabs(rotation_speed) > gyro_threshold && !rotation_detected) {
-            rotation_detected = true;
-            rotations++;
-            // rotations++; // Removed saveRotations() call
-            last_rotation_time = millis();
-          }
-          
-          // Reset pulse detection after rotation completes
-          if (rotation_detected && fabs(rotation_speed) < gyro_threshold / 2) {
-            rotation_detected = false;
-          }
-        }
-        
-        // Detect stopping/pause
-        if (is_rotating && (millis() - last_movement_time > MOVEMENT_TIMEOUT)) {
-          is_rotating = false;
-        }
+      // Simple rotation detection
+      if (fabs(rotation_speed) > gyro_threshold && !is_rotating) {
+        is_rotating = true;
+      } else if (fabs(rotation_speed) < gyro_threshold / 2 && is_rotating) {
+        is_rotating = false;
       }
 
       if (debug_mode) {
         char debug_data[256];
         snprintf(debug_data, sizeof(debug_data), 
-                 "Accel: X:%.2f Y:%.2f Z:%.2f | Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Speed: %.2f deg/s | Detected: %d", 
-                 a.acceleration.x, a.acceleration.y, a.acceleration.z,
+                 "Gyro: X:%.2f Y:%.2f Z:%.2f | Rotating: %d", 
                  g.gyro.x, g.gyro.y, g.gyro.z,
-                 rotations,
-                 current_rotation_speed,
-                 rotation_detected);
+                 is_rotating);
         Serial.println(debug_data);
       }
     }
