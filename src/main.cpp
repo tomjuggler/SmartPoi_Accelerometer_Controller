@@ -20,8 +20,7 @@ int patternNumbers[62]; // Max 62 patterns (0-61)
 int patternCount = 0;
 int currentPatternIndex = 0;
 bool patternsLoaded = false;
-unsigned long lastPatternRequestTime = 0;
-const unsigned long patternRequestInterval = 1000; // 1 second between pattern requests
+bool patternSentForCurrentPause = false; // Track if pattern already sent for current pause
 
 
 
@@ -160,8 +159,6 @@ void sendPatternRequest(int patternNumber) {
       http.end();
     }
   }
-
-  lastPatternRequestTime = millis();
 }
 void setup() {
   Serial.begin(115200);
@@ -243,9 +240,18 @@ void loop() {
         last_movement_time = millis();  // Update last movement time
         if (!is_rotating) {
           is_rotating = true;
-          // Reset pattern index when movement starts
-          currentPatternIndex = 0;
-          Serial.println("Movement detected - reset pattern index to 0");
+          // Reset sent flag for new pause cycle
+          patternSentForCurrentPause = false;
+          
+          // Increment pattern index when movement resumes (next pause)
+          if (patternCount > 0) {
+            currentPatternIndex++;
+            if (currentPatternIndex >= patternCount) {
+              currentPatternIndex = 0; // Loop back to first pattern
+            }
+            Serial.printf("Movement resumed - next pattern index: %d (pattern %d)\n", 
+                          currentPatternIndex, patternNumbers[currentPatternIndex]);
+          }
         }
       } else if (fabs(rotation_speed) < gyro_threshold / 2 && is_rotating) {
         is_rotating = false;
@@ -276,18 +282,12 @@ void loop() {
     }
   }
 
-  // Send pattern requests when still and patterns are loaded
-  if (is_still && patternsLoaded && patternCount > 0) {
-    if (millis() - lastPatternRequestTime >= patternRequestInterval) {
-      // Send current pattern to both servers
-      sendPatternRequest(patternNumbers[currentPatternIndex]);
-      
-      // Move to next pattern, loop back after last
-      currentPatternIndex++;
-      if (currentPatternIndex >= patternCount) {
-        currentPatternIndex = 0;
-      }
-    }
+  // Send ONE pattern request per pause (when still for >2 seconds)
+  if (is_still && patternsLoaded && patternCount > 0 && !patternSentForCurrentPause) {
+    // Send current pattern to both servers
+    Serial.printf("Pause detected - sending pattern %d\n", patternNumbers[currentPatternIndex]);
+    sendPatternRequest(patternNumbers[currentPatternIndex]);
+    patternSentForCurrentPause = true;
   }
 
   delay(50); // Significantly increased delay to reduce CPU load
