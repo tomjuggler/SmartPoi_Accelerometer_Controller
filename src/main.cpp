@@ -16,7 +16,8 @@ Adafruit_MPU6050 mpu;
 
 // Rotation detection
 bool is_rotating = false;
-float gyro_threshold = 100.0;  // degrees per second threshold for rotation detection
+float gyro_threshold = 200.0;  // Increased threshold to ignore tiny jiggles
+unsigned long last_movement_time = 0;  // Track last movement detection
 
 // Stability tracking
 unsigned long last_watchdog_feed = 0;
@@ -108,9 +109,12 @@ void loop() {
       // Convert from radians to degrees per second
       float rotation_speed = gyroValue * 57.2958;  // rad/s to deg/s
       
-      // Simple rotation detection
-      if (fabs(rotation_speed) > gyro_threshold && !is_rotating) {
-        is_rotating = true;
+      // Movement detection with debounce
+      if (fabs(rotation_speed) > gyro_threshold) {
+        last_movement_time = millis();  // Update last movement time
+        if (!is_rotating) {
+          is_rotating = true;
+        }
       } else if (fabs(rotation_speed) < gyro_threshold / 2 && is_rotating) {
         is_rotating = false;
       }
@@ -118,19 +122,24 @@ void loop() {
       if (debug_mode) {
         char debug_data[256];
         snprintf(debug_data, sizeof(debug_data), 
-                 "Gyro: X:%.2f Y:%.2f Z:%.2f | Rotating: %d", 
+                 "Gyro: X:%.2f Y:%.2f Z:%.2f | Rot: %d | Still: %lums", 
                  g.gyro.x, g.gyro.y, g.gyro.z,
-                 is_rotating);
+                 is_rotating, millis() - last_movement_time);
         Serial.println(debug_data);
       }
     }
   }
 
-  // Control LED based on rotation state
+  // Control LED: Only turn ON after 2 seconds of stillness
   if (is_rotating) {
     digitalWrite(LED_BUILTIN, HIGH); // LED OFF when rotating
   } else {
-    digitalWrite(LED_BUILTIN, LOW); // LED ON when stopped
+    // Check if device has been still for more than 2 seconds
+    if (millis() - last_movement_time > 2000) {
+      digitalWrite(LED_BUILTIN, LOW); // LED ON when stopped for >2s
+    } else {
+      digitalWrite(LED_BUILTIN, HIGH); // LED OFF while waiting for stillness period
+    }
   }
 
   delay(50); // Significantly increased delay to reduce CPU load
