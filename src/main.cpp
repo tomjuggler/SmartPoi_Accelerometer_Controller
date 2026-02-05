@@ -71,9 +71,11 @@ bool loadPatterns() {
         Serial.print(": ");
         Serial.println(payload);
 
-        // Parse JSON array
-        StaticJsonDocument<2048> doc;
+        // Parse JSON array - use DynamicJsonDocument for large response on ESP8266
+        DynamicJsonDocument doc(8192);  // Increased for large file list
         DeserializationError error = deserializeJson(doc, payload);
+        
+        Serial.printf("JSON parse result: %s\n", error.c_str());
 
         if (!error) {
           // Clear existing patterns
