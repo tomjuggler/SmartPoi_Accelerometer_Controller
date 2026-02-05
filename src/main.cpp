@@ -4,6 +4,8 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include "secrets.h"
+#include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
 
 // Watchdog timer for crash recovery
 #include <Ticker.h>
@@ -11,6 +13,15 @@ Ticker watchdogTicker;
 
 // MPU-6050 sensor object
 Adafruit_MPU6050 mpu;
+
+// HTTP and pattern management
+const char* serverIPs[2] = {"192.168.1.1", "192.168.1.78"};
+int patternNumbers[62]; // Max 62 patterns (0-61)
+int patternCount = 0;
+int currentPatternIndex = 0;
+bool patternsLoaded = false;
+unsigned long lastPatternRequestTime = 0;
+const unsigned long patternRequestInterval = 1000; // 1 second between pattern requests
 
 
 
@@ -37,6 +48,121 @@ void feedWatchdog() {
   last_watchdog_feed = millis();
 }
 
+// Get list of .bin files from servers and map to pattern numbers
+bool loadPatterns() {
+  if (patternsLoaded) return true;
+
+  Serial.println("Loading patterns from servers...");
+
+  HTTPClient http;
+  WiFiClient client;
+  bool success = false;
+
+  // Try both servers
+  for (int i = 0; i < 2; i++) {
+    String url = "http://" + String(serverIPs[i]) + "/list?dir=/";
+
+    if (http.begin(client, url)) {
+      int httpCode = http.GET();
+
+      if (httpCode == HTTP_CODE_OK) {
+        String payload = http.getString();
+        Serial.print("Got file list from ");
+        Serial.print(serverIPs[i]);
+        Serial.print(": ");
+        Serial.println(payload);
+
+        // Parse JSON array
+        StaticJsonDocument<2048> doc;
+        DeserializationError error = deserializeJson(doc, payload);
+
+        if (!error) {
+          // Clear existing patterns
+          patternCount = 0;
+
+          // Iterate through array and find .bin files
+          for (JsonObject obj : doc.as<JsonArray>()) {
+            const char* name = obj["name"];
+            if (name && strstr(name, ".bin")) {
+              // Check if it's a single character file (a.bin, b.bin, etc.)
+              if (strlen(name) == 5 && name[1] == '.') { // "a.bin" format
+                char firstChar = name[0];
+                int patternNumber = -1;
+
+                // Map character to pattern number starting at 8
+                if (firstChar >= 'a' && firstChar <= 'z') {
+                  patternNumber = 8 + (firstChar - 'a');
+                } else if (firstChar >= 'A' && firstChar <= 'Z') {
+                  patternNumber = 8 + 26 + (firstChar - 'A');
+                } else if (firstChar >= '0' && firstChar <= '9') {
+                  patternNumber = 8 + 52 + (firstChar - '0');
+                }
+
+                if (patternNumber >= 8 && patternNumber <= 69) { // 8-69 range
+                  patternNumbers[patternCount++] = patternNumber;
+                  Serial.printf("Mapped %s -> pattern %d\n", name, patternNumber);
+                }
+              }
+            }
+          }
+
+          if (patternCount > 0) {
+            success = true;
+            patternsLoaded = true;
+            Serial.printf("Loaded %d patterns\n", patternCount);
+            break;
+          }
+        } else {
+          Serial.print("JSON parse error: ");
+          Serial.println(error.c_str());
+        }
+      } else {
+        Serial.printf("HTTP error %d from %s\n", httpCode, serverIPs[i]);
+      }
+
+      http.end();
+    } else {
+      Serial.printf("Failed to connect to %s\n", serverIPs[i]);
+    }
+  }
+
+  if (!success) {
+    Serial.println("Failed to load patterns from any server");
+  }
+
+  return success;
+}
+
+// Send pattern request to both servers
+void sendPatternRequest(int patternNumber) {
+  if (patternNumber < 8 || patternNumber > 69) return;
+
+  HTTPClient http;
+  WiFiClient client;
+
+  for (int i = 0; i < 2; i++) {
+    String url = "http://" + String(serverIPs[i]) + "/pattern?patternChooserChange=" + String(patternNumber);
+
+    if (http.begin(client, url)) {
+      http.setTimeout(1000); // 1 second timeout
+      int httpCode = http.GET();
+
+      if (httpCode == HTTP_CODE_OK) {
+        String response = http.getString();
+        Serial.printf("Server %s: Pattern %d set successfully\n", serverIPs[i], patternNumber);
+      } else if (httpCode == HTTP_CODE_BAD_REQUEST) {
+        String response = http.getString();
+        Serial.printf("Server %s: Invalid pattern %d\n", serverIPs[i], patternNumber);
+      } else {
+        Serial.printf("Server %s: HTTP error %d\n", serverIPs[i], httpCode);
+      }
+
+      http.end();
+    }
+  }
+
+  lastPatternRequestTime = millis();
+}
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\nSerial monitor started.");
@@ -61,6 +187,9 @@ void setup() {
     Serial.println("\nWiFi connected!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
+    
+    // Load patterns from servers
+    loadPatterns();
   }
 
   // Initialize LED for status indication
@@ -114,6 +243,9 @@ void loop() {
         last_movement_time = millis();  // Update last movement time
         if (!is_rotating) {
           is_rotating = true;
+          // Reset pattern index when movement starts
+          currentPatternIndex = 0;
+          Serial.println("Movement detected - reset pattern index to 0");
         }
       } else if (fabs(rotation_speed) < gyro_threshold / 2 && is_rotating) {
         is_rotating = false;
@@ -131,14 +263,30 @@ void loop() {
   }
 
   // Control LED: Only turn ON after 2 seconds of stillness
+  bool is_still = false;
   if (is_rotating) {
     digitalWrite(LED_BUILTIN, HIGH); // LED OFF when rotating
   } else {
     // Check if device has been still for more than 2 seconds
     if (millis() - last_movement_time > 2000) {
       digitalWrite(LED_BUILTIN, LOW); // LED ON when stopped for >2s
+      is_still = true;
     } else {
       digitalWrite(LED_BUILTIN, HIGH); // LED OFF while waiting for stillness period
+    }
+  }
+
+  // Send pattern requests when still and patterns are loaded
+  if (is_still && patternsLoaded && patternCount > 0) {
+    if (millis() - lastPatternRequestTime >= patternRequestInterval) {
+      // Send current pattern to both servers
+      sendPatternRequest(patternNumbers[currentPatternIndex]);
+      
+      // Move to next pattern, loop back after last
+      currentPatternIndex++;
+      if (currentPatternIndex >= patternCount) {
+        currentPatternIndex = 0;
+      }
     }
   }
 
