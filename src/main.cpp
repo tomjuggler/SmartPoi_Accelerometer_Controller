@@ -25,7 +25,7 @@ Ticker watchdogTicker;
 #ifndef LED_BUILTIN
   #if defined(ESP32)
     // Common built-in LED pin for many ESP32 boards
-    #define LED_BUILTIN 2
+    #define LED_BUILTIN 8
   #endif
 #endif
 
