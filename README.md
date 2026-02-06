@@ -78,7 +78,7 @@ Connect the MPU-6050 to the ESP32 C3 Super Mini as follows:
 
 1. **First Boot - AP Mode:**
    - On first boot or when no configured WiFi networks are available (Poi OFF), the ESP32 C3 will start in AP (Access Point) mode
-   - Connect your computer or phone to the WiFi network named "SmartPoi-Config" (No Password)
+   - Connect your computer or phone to the WiFi network named "SmartPoi-Accelerometer-Config" (No Password)
    - Open a web browser and navigate to `http://192.168.4.1` if the page does not open automatically
 
 2. **Web Configuration Interface:**
