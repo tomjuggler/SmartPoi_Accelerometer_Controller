@@ -3,19 +3,21 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include "secrets.h"
+#include "tasks.h"
 #include <ArduinoJson.h>
 
-// Platform-specific includes
-#if defined(ESP8266)
-  #include <ESP8266WiFi.h>
-  #include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-  #include <WiFi.h>
-  #include <HTTPClient.h>
-  #include <esp_system.h>
-#else
-  #error "Unsupported platform"
-#endif
+// ESP32-specific includes
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <esp_system.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
+#include <LittleFS.h>
+#include <DNSServer.h>
 
 // Watchdog timer for crash recovery
 #include <Ticker.h>
@@ -23,10 +25,7 @@ Ticker watchdogTicker;
 
 // LED configuration - define LED_BUILTIN for ESP32 if not already defined
 #ifndef LED_BUILTIN
-  #if defined(ESP32)
-    // Common built-in LED pin for many ESP32 boards
-    #define LED_BUILTIN 8
-  #endif
+  #define LED_BUILTIN 8  // Common built-in LED pin for many ESP32 boards
 #endif
 
 // MPU-6050 sensor object
@@ -51,16 +50,22 @@ unsigned long last_movement_time = 0;  // Track last movement detection
 unsigned long last_watchdog_feed = 0;
 bool mpu_initialized = false;
 
+// FreeRTOS task handles
+TaskHandle_t elegantOTATaskHandle = NULL;
 
+// WiFi settings
+WiFiSettings wifiSettings;
+bool otaInProgress = false;
+bool captivePortalActive = false;
+
+// Web server instances
+AsyncWebServer server(80);
+DNSServer dnsServer;
 
 // Watchdog timer callback
 void watchdogCallback() {
   if (millis() - last_watchdog_feed > 10000) { // 10 seconds without feeding
-    #if defined(ESP8266)
-      ESP.restart();
-    #elif defined(ESP32)
-      esp_restart();
-    #endif
+    esp_restart();
   }
 }
 
@@ -93,7 +98,7 @@ bool loadPatterns() {
         Serial.print(": ");
         Serial.println(payload);
 
-        // Parse JSON array - use DynamicJsonDocument for large response on ESP8266
+        // Parse JSON array - use DynamicJsonDocument for large response
         DynamicJsonDocument doc(8192);  // Increased for large file list
         DeserializationError error = deserializeJson(doc, payload);
         
@@ -192,36 +197,48 @@ void setup() {
   watchdogTicker.attach(1, watchdogCallback); // Check every second
   feedWatchdog();
 
-  // Connect to WiFi with timeout
-  Serial.print("Connecting to WiFi...");
-  WiFi.begin(ssid, password);
-  unsigned long wifiStart = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
-    delay(500);
-    Serial.print(".");
-    feedWatchdog();
+  // Initialize LittleFS
+  if (!initLittleFS()) {
+    Serial.println("Failed to initialize LittleFS");
   }
-  
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nWiFi connection failed! Continuing without WiFi...");
-  } else {
-    Serial.println("\nWiFi connected!");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-    
-    // Adjust WiFi power for ESP32 C3 boards
-    #if defined(C_THREE)
-        WiFi.setTxPower(WIFI_POWER_8_5dBm);  // for ESP32 C3 Super Mini - helps WiFi be more reliable!
-        Serial.println("WiFi power adjusted for ESP32 C3");
-    #endif
-    
-    // Load patterns from servers
-    loadPatterns();
-  }
+
+  // Load WiFi settings from LittleFS
+  loadWiFiSettings();
 
   // Initialize LED for status indication
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH); // Turn LED OFF initially (active low)
+
+  // Try to connect to WiFi using saved settings or fallback
+  if (initWiFi()) {
+    Serial.println("WiFi connected!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+    
+    // Load patterns from servers if WiFi is connected
+    loadPatterns();
+  } else {
+    Serial.println("WiFi connection failed, starting captive portal...");
+    // Start Access Point for configuration
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(apIP, apIP, netMask);
+    WiFi.softAP("ESP32-Config");
+    // Start DNS server for captive portal
+    dnsServer.start(DNS_PORT, "*", apIP);
+    captivePortalActive = true;
+    Serial.println("Captive portal started. Connect to ESP32-Config AP");
+  }
+
+  // Create ElegantOTA task (handles both normal and captive portal modes)
+  xTaskCreatePinnedToCore(
+    elegantOTATask,      // Task function
+    "ElegantOTA Task",   // Name
+    8192,                // Stack size
+    NULL,                // Parameters
+    1,                   // Priority
+    &elegantOTATaskHandle, // Task handle
+    1                    // Core (1 = APP_CPU)
+  );
 
   // Initialize MPU6050
   delay(100); // Wait for the sensor to power up

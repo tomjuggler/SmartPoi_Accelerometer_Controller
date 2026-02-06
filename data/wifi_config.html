@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 WiFi Configuration</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 28px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+        
+        .status {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .network-group {
+            margin-bottom: 28px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .network-group h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            color: #333;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .remove-btn:hover {
+            background: #c82333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #495057;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 12px;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 32px;
+        }
+        
+        button {
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            flex: 1;
+            text-align: center;
+            padding: 14px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #495057;
+            font-weight: 500;
+            border: 2px solid #dee2e6;
+            transition: all 0.2s;
+        }
+        
+        .nav-link:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 16px;
+            }
+            .card {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            button {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>WiFi Configuration</h1>
+            <p class="subtitle">Configure up to 3 WiFi networks. Device tries them in order. Fallback uses secrets.h.</p>
+            
+            <div id="status" class="status"></div>
+            
+            <form id="wifiForm">
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="fallbackEnabled" name="fallbackEnabled" checked>
+                        <label for="fallbackEnabled">Use fallback WiFi (from secrets.h) when saved networks fail</label>
+                    </div>
+                </div>
+                
+                <div id="networkConfigs">
+                    <!-- Networks will be inserted here -->
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn-secondary" onclick="resetSettings()">Reset to Defaults</button>
+                    <button type="submit" class="btn-primary">Save & Reconnect</button>
+                </div>
+            </form>
+            
+            <div class="nav-links">
+                <a href="/" class="nav-link">Status Page</a>
+                <a href="/update" class="nav-link">OTA Update</a>
+                <a href="/info" class="nav-link">System Info</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const networks = [
+            {ssid: "", password: "", enabled: false},
+            {ssid: "", password: "", enabled: false},
+            {ssid: "", password: "", enabled: false}
+        ];
+        
+        function showStatus(message, isError = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + (isError ? 'error' : 'success');
+        }
+        
+        function renderNetworkConfigs() {
+            const container = document.getElementById('networkConfigs');
+            container.innerHTML = '';
+            
+            networks.forEach((network, index) => {
+                container.innerHTML += `
+                    <div class="network-group">
+                        <h3>
+                            WiFi Network ${index + 1}
+                            ${index > 0 ? `<button type="button" class="remove-btn" onclick="removeNetwork(${index})">Remove</button>` : ''}
+                        </h3>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="enabled${index}" ${network.enabled ? 'checked' : ''}>
+                                <label for="enabled${index}">Enable this network</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ssid${index}">SSID</label>
+                            <input type="text" id="ssid${index}" value="${network.ssid}" placeholder="WiFi network name">
+                        </div>
+                        <div class="form-group">
+                            <label for="password${index}">Password</label>
+                            <input type="password" id="password${index}" value="${network.password}" placeholder="WiFi password">
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        function removeNetwork(index) {
+            networks.splice(index, 1);
+            networks.push({ssid: "", password: "", enabled: false}); // keep length 3
+            renderNetworkConfigs();
+        }
+        
+        function loadCurrentSettings() {
+            fetch('/info')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.networks) {
+                        networks.forEach((_, i) => {
+                            if (data.networks[i]) {
+                                networks[i] = data.networks[i];
+                            }
+                        });
+                    }
+                    if (data.fallbackEnabled !== undefined) {
+                        document.getElementById('fallbackEnabled').checked = data.fallbackEnabled;
+                    }
+                    renderNetworkConfigs();
+                })
+                .catch(e => {
+                    console.error('Error:', e);
+                    renderNetworkConfigs();
+                });
+        }
+        
+        function resetSettings() {
+            if (confirm('Reset all WiFi settings to defaults?')) {
+                fetch('/reset', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadCurrentSettings();
+                            showStatus('Settings reset to defaults');
+                        } else {
+                            showStatus('Failed to reset settings', true);
+                        }
+                    })
+                    .catch(e => {
+                        console.error('Error:', e);
+                        showStatus('Failed to reset settings', true);
+                    });
+            }
+        }
+        
+        document.getElementById('wifiForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('fallbackEnabled', document.getElementById('fallbackEnabled').checked ? '1' : '0');
+            
+            networks.forEach((_, i) => {
+                const enabled = document.getElementById('enabled' + i).checked;
+                const ssid = document.getElementById('ssid' + i).value;
+                const password = document.getElementById('password' + i).value;
+                formData.append('enabled' + i, enabled ? '1' : '0');
+                formData.append('ssid' + i, ssid);
+                formData.append('password' + i, password);
+            });
+            
+            showStatus('Saving settings...');
+            
+            fetch('/save', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('Settings saved! Reconnecting...');
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    showStatus('Failed to save: ' + data.message, true);
+                }
+            })
+            .catch(e => {
+                console.error('Error:', e);
+                showStatus('Failed to save settings', true);
+            });
+        });
+        
+        // Load current settings on page load
+        loadCurrentSettings();
+    </script>
+</body>
+</html>
