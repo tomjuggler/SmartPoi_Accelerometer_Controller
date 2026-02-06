@@ -222,11 +222,11 @@ void setup() {
     // Start Access Point for configuration
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(apIP, apIP, netMask);
-    WiFi.softAP("ESP32-Config");
+    WiFi.softAP("SmartPoi-Accelerometer-Config");
     // Start DNS server for captive portal
     dnsServer.start(DNS_PORT, "*", apIP);
     captivePortalActive = true;
-    Serial.println("Captive portal started. Connect to ESP32-Config AP");
+    Serial.println("Captive portal started. Connect to SmartPoi-Accelerometer-Config AP");
   }
 
   // Create ElegantOTA task (handles both normal and captive portal modes)
