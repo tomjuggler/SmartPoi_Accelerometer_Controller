@@ -3,4 +3,8 @@
 .aider*
 .cecli*
 
+# Secrets file
+src/secrets.cpp
+
+
 
