@@ -31,6 +31,11 @@ Connect the MPU-6050 to the ESP32 C3 Super Mini as follows:
 | SCL | GPIO8 |
 | SDA | GPIO9 |
 
+![SmartPoi Accelerometer Breadboard](SmartPoi_Accelerometer_Breadboard.png)
+
+*Breadboard layout showing ESP32 C3 Super Mini connected to MPU-6050 accelerometer*
+
+
 ## Installation
 
 1. **Clone the repository:**
