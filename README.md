@@ -38,7 +38,20 @@ Connect the MPU-6050 to the D1 Mini as follows:
    Follow the instructions on the [PlatformIO website](https://platformio.org/install).
 
 3. **Configure WiFi:**
-   Open `src/main.cpp` and replace `"YOUR_SSID"` and `"YOUR_PASSWORD"` with your WiFi credentials.
+   Create a `secrets.cpp` file in the `src` directory with your WiFi credentials:
+   ```cpp
+   #include "secrets.h"
+   
+   // WiFi Credentials
+   const char* ssid = "YOUR_WIFI_SSID";
+   const char* password = "YOUR_WIFI_PASSWORD";
+   // Debug Mode
+   const bool debug_mode = true;  // Set to false for production
+   // Rotation Axis (0=X, 1=Y, 2=Z)
+   const int rotation_axis = 0;
+   ```
+   
+   An example file `secrets_example.txt` is provided in the project root. Rename it to `secrets.cpp`, move it to the `src` directory, and edit with your actual credentials.
 
 4. **Build and Upload:**
    Connect the D1 Mini to your computer and run the following command:
