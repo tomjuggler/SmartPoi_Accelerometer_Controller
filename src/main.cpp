@@ -1,15 +1,33 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include "secrets.h"
-#include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
+
+// Platform-specific includes
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266HTTPClient.h>
+#elif defined(ESP32)
+  #include <WiFi.h>
+  #include <HTTPClient.h>
+  #include <esp_system.h>
+#else
+  #error "Unsupported platform"
+#endif
 
 // Watchdog timer for crash recovery
 #include <Ticker.h>
 Ticker watchdogTicker;
+
+// LED configuration - define LED_BUILTIN for ESP32 if not already defined
+#ifndef LED_BUILTIN
+  #if defined(ESP32)
+    // Common built-in LED pin for many ESP32 boards
+    #define LED_BUILTIN 2
+  #endif
+#endif
 
 // MPU-6050 sensor object
 Adafruit_MPU6050 mpu;
@@ -38,7 +56,11 @@ bool mpu_initialized = false;
 // Watchdog timer callback
 void watchdogCallback() {
   if (millis() - last_watchdog_feed > 10000) { // 10 seconds without feeding
-    ESP.restart();
+    #if defined(ESP8266)
+      ESP.restart();
+    #elif defined(ESP32)
+      esp_restart();
+    #endif
   }
 }
 
