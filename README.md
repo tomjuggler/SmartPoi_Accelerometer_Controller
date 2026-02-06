@@ -40,8 +40,8 @@ Connect the MPU-6050 to the ESP32 C3 Super Mini as follows:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
-   cd SmartPoi-Accelerometer-Controller
+   git clone https://github.com/tomjuggler/SmartPoi_Accelerometer_Controller
+   cd SmartPoi_Accelerometer_Controller
    ```
 
 2. **Install PlatformIO:**
