@@ -70,16 +70,16 @@ Connect the MPU-6050 to the ESP32 C3 Super Mini as follows:
    ```bash
    platformio run --target upload --target uploadfs
    ```
-   This will compile the code, upload it to the ESP32 C3 Super Mini, and upload the LittleFS filesystem image.
+   This will compile the code, upload it to the ESP32 C3 Super Mini, and upload the LittleFS filesystem image. (Or just use PlatformIO "Build" and "Upload", "Build Filesystem" and "Upload Filesystem" if using VSCode IDE with PlatformIO Extension)
 
 ## Usage
 
 ### Initial Setup and Configuration
 
 1. **First Boot - AP Mode:**
-   - On first boot or when no configured WiFi networks are available, the ESP32 C3 will start in AP (Access Point) mode
-   - Connect your computer or phone to the WiFi network named "SmartPoi-Config" (password: "configureme")
-   - Open a web browser and navigate to `http://192.168.4.1`
+   - On first boot or when no configured WiFi networks are available (Poi OFF), the ESP32 C3 will start in AP (Access Point) mode
+   - Connect your computer or phone to the WiFi network named "SmartPoi-Config" (No Password)
+   - Open a web browser and navigate to `http://192.168.4.1` if the page does not open automatically
 
 2. **Web Configuration Interface:**
    - Use the web interface to configure up to 3 WiFi networks that your SmartPoi devices use
