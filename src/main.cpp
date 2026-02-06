@@ -209,6 +209,12 @@ void setup() {
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     
+    // Adjust WiFi power for ESP32 C3 boards
+    #if defined(C_THREE)
+        WiFi.setTxPower(WIFI_POWER_8_5dBm);  // for ESP32 C3 Super Mini - helps WiFi be more reliable!
+        Serial.println("WiFi power adjusted for ESP32 C3");
+    #endif
+    
     // Load patterns from servers
     loadPatterns();
   }
